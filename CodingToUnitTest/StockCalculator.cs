@@ -1,5 +1,6 @@
 using NUnit.Framework;
 using NUnitLite;
+using Moq;
 using System;
 using System.Reflection;
 
@@ -19,7 +20,7 @@ namespace CodepadTestSample
 
         }
 
-        public class InventoryRepo
+        public class InventoryRepo : IInventoryRepo
         {
             public int GetStock(int productId)
             {
@@ -36,27 +37,24 @@ namespace CodepadTestSample
                 this._inventoryRepo = inventoryRepo;
             }
 
-            public double GrossTotal(double price, int quanity) => (price * quanity);
+            public double GrossTotal(double price, int quantity) => (price * quantity);
 
             private const double vatRate = 1.2;
-            public double NetTotal(double price, int quanity) => this.GrossTotal(price, quanity) * vatRate;
+            public double NetTotal(double price, int quantity) => this.GrossTotal(price, quantity) * vatRate;
 
-            public double BulkBuyDiscount(int quanity)
+            public double BulkBuyDiscount(int quantity)
             {
-
-                if (quanity < 100)
-                    //No discount
+                if (quantity < 100)
+                    // No discount
                     return 1;
 
-                if (quanity < 1000)
-                    //10 percent
+                if (quantity < 1000)
+                    // 10 percent
                     return 0.90;
 
-                //a generous 20 percent 
+                // A generous 20 percent 
                 return 0.8;
-
             }
-
 
             public bool IsStockRunningLow(int productId)
             {
@@ -74,46 +72,94 @@ namespace CodepadTestSample
                 return 1;
             }
 
-            public double FinalTotal(int productId, double price, int quanity, bool calculateWithVat)
+            public double FinalTotal(int productId, double price, int quantity, bool calculateWithVat)
             {
-                var intialTotal = (calculateWithVat)
-                                    ? NetTotal(price, quanity)
-                                    : GrossTotal(price, quanity);
+                var initialTotal = (calculateWithVat)
+                                    ? NetTotal(price, quantity)
+                                    : GrossTotal(price, quantity);
 
-                return intialTotal * (StockRunningLowMultipler(quanity)) * BulkBuyDiscount(quanity);
+                return initialTotal * (StockRunningLowMultipler(productId)) * BulkBuyDiscount(quantity);
             }
 
-            public bool IsStockAvailable(int productId, int quanity)
+            public bool IsStockAvailable(int productId, int quantity)
             {
-                throw new NotImplementedException();
+                var currentStock = _inventoryRepo.GetStock(productId);
+                return currentStock >= quantity;
             }
-
         }
-
 
         [TestFixture]
         public class StockCalculatorTests
         {
+            private Calculator _calculator;
+            private Mock<IInventoryRepo> _mockInventoryRepo;
+
+            [SetUp]
+            public void Setup()
+            {
+                _mockInventoryRepo = new Mock<IInventoryRepo>();
+                _calculator = new Calculator(_mockInventoryRepo.Object);
+            }
+
             [Test]
             public void TestCheckBoolean()
             {
                 Assert.IsTrue(true);
             }
 
-            /*
-                Tests for GrossTotal, NetTotal and or BulkBuyDiscount
-            */
+            [Test]
+            public void GrossTotal_ShouldCalculateCorrectly()
+            {
+                var result = _calculator.GrossTotal(10, 2);
+                Assert.AreEqual(20, result);
+            }
 
+            [Test]
+            public void NetTotal_ShouldCalculateCorrectly()
+            {
+                var result = _calculator.NetTotal(10, 2);
+                Assert.AreEqual(24, result); // 10 * 2 * 1.2
+            }
 
-            /*
-                Tests for IsStockRunningLow
-            */
+            [Test]
+            public void BulkBuyDiscount_ShouldReturnCorrectDiscount()
+            {
+                Assert.AreEqual(1, _calculator.BulkBuyDiscount(50));
+                Assert.AreEqual(0.90, _calculator.BulkBuyDiscount(500));
+                Assert.AreEqual(0.8, _calculator.BulkBuyDiscount(1000));
+            }
 
-            /*
-                Write implemenation and test IsStockAvailable
-            */
+            [Test]
+            public void IsStockRunningLow_ShouldReturnTrue_WhenStockIsLow()
+            {
+                _mockInventoryRepo.Setup(repo => repo.GetStock(It.IsAny<int>())).Returns(5);
+                var result = _calculator.IsStockRunningLow(1);
+                Assert.IsTrue(result);
+            }
 
+            [Test]
+            public void IsStockRunningLow_ShouldReturnFalse_WhenStockIsNotLow()
+            {
+                _mockInventoryRepo.Setup(repo => repo.GetStock(It.IsAny<int>())).Returns(15);
+                var result = _calculator.IsStockRunningLow(1);
+                Assert.IsFalse(result);
+            }
 
+            [Test]
+            public void IsStockAvailable_ShouldReturnTrue_WhenStockIsSufficient()
+            {
+                _mockInventoryRepo.Setup(repo => repo.GetStock(It.IsAny<int>())).Returns(20);
+                var result = _calculator.IsStockAvailable(1, 10);
+                Assert.IsTrue(result);
+            }
+
+            [Test]
+            public void IsStockAvailable_ShouldReturnFalse_WhenStockIsInsufficient()
+            {
+                _mockInventoryRepo.Setup(repo => repo.GetStock(It.IsAny<int>())).Returns(5);
+                var result = _calculator.IsStockAvailable(1, 10);
+                Assert.IsFalse(result);
+            }
         }
     }
 }
