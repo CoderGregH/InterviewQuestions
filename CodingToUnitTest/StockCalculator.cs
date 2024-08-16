@@ -36,10 +36,20 @@ namespace CodepadTestSample
                 this._inventoryRepo = inventoryRepo;
             }
 
-            public double GrossTotal(double price, int quanity) => (price * quanity);
+            public double GrossTotal(double price, int quantity)
+            {
+                if (price < 0 || quantity < 0)
+                    return 0;
+                return price * quantity;
+            }
 
             private const double vatRate = 1.2;
-            public double NetTotal(double price, int quanity) => this.GrossTotal(price, quanity) * vatRate;
+            public double NetTotal(double price, int quantity)
+            {
+                if (price < 0 || quantity < 0 || vatRate < 0)
+                    return 0;
+                return GrossTotal(price, quantity) * vatRate;
+            }
 
             public double BulkBuyDiscount(int quanity)
             {
@@ -56,7 +66,6 @@ namespace CodepadTestSample
                 return 0.8;
 
             }
-
 
             public bool IsStockRunningLow(int productId)
             {
@@ -109,28 +118,87 @@ namespace CodepadTestSample
             }
         }
 
+
         [TestFixture]
         public class StockCalculatorTests
         {
 
-            [Test]
-            public void TestGrossTotal()
+            [Theory]
+            [TestCase(-10, 5)]
+            [TestCase(10, -5)]
+            [TestCase(-10, -5)]
+            public void GrossTotal_NegativeValues_ReturnsZero(double price, int quantity)
             {
+                // Arrange
                 var inventoryRepo = new TestInventoryRepo(50);
                 var calculator = new Calculator(inventoryRepo);
 
-                var result = calculator.GrossTotal(10.0, 5);
-                Assert.That(50.0, Is.EqualTo(result)); // Equivalent to Assert.AreEqual(50.0, result);
+                // Act
+                var result = calculator.GrossTotal(price, quantity);
+
+                // Assert
+                Assert.That(0, Is.EqualTo(result));
+            }
+
+            [Theory]
+            [TestCase(15, 3, 45)]
+            [TestCase(10, 5, 50)]
+            public void GrossTotal_ValidValues_ReturnsCorrectTotal(double price, int quantity, double expected)
+            {
+                // Arrange
+                var inventoryRepo = new TestInventoryRepo(50);
+                var calculator = new Calculator(inventoryRepo);
+
+                // Act
+                var result = calculator.GrossTotal(price, quantity);
+
+                // Assert
+                Assert.That(expected, Is.EqualTo(result));
             }
 
             [Test]
             public void TestNetTotal()
             {
+                // Arrange
                 var inventoryRepo = new TestInventoryRepo(50);
                 var calculator = new Calculator(inventoryRepo);
 
+                // Act
                 var result = calculator.NetTotal(10.0, 5);
+
+                // Assert
                 Assert.That(result, Is.EqualTo(60.0));  // Equivalent to Assert.AreEqual(60.0, result);
+            }
+
+            [TestCase(-10, 5, 0)]
+            [TestCase(10, -5, 0)]
+            [TestCase(-10, -5, 0)]
+            public void NetTotal_NegativeValues_ReturnsZero(double price, int quantity, int expected)
+            {
+                // Arrange
+                var inventoryRepo = new TestInventoryRepo(5);
+                var calculator = new Calculator(inventoryRepo);
+
+                // Act
+                var result = calculator.NetTotal(price, quantity);
+
+                // Assert
+                Assert.That(expected, Is.EqualTo(result));
+            }
+
+            [TestCase(10, 5, 60)] // Example with positive values
+            [TestCase(15, 3, 54)] // Example with positive values
+            public void NetTotal_ValidValues_ReturnsCorrectTotal(double price, int quantity, int expected)
+            {
+                // Arrange
+                var inventoryRepo = new TestInventoryRepo(5);
+                var calculator = new Calculator(inventoryRepo);
+
+                // Act
+                var result = calculator.NetTotal(price, quantity);
+
+                // Assert
+                Assert.That(expected, Is.EqualTo(result));
             }
 
             [Test]
@@ -276,8 +344,6 @@ namespace CodepadTestSample
                 // Assert
                 Assert.That(result, Is.False); // Stock is insufficient
             }
-
-
 
             /*
                 Tests for GrossTotal, NetTotal and or BulkBuyDiscount
