@@ -90,14 +90,187 @@ namespace CodepadTestSample
 
         }
 
+        public class TestInventoryRepo : IInventoryRepo
+        {
+            private readonly int _stock;
+
+            public TestInventoryRepo(int stock)
+            {
+                _stock = stock;
+            }
+
+            public int GetStock(int productId)
+            {
+                return _stock;
+            }
+        }
 
         [TestFixture]
         public class StockCalculatorTests
         {
+
             [Test]
-            public void TestCheckBoolean()
+            public void TestGrossTotal()
             {
-                Assert.IsTrue(true);
+                var inventoryRepo = new TestInventoryRepo(50);
+                var calculator = new Calculator(inventoryRepo);
+
+                var result = calculator.GrossTotal(10.0, 5);
+                Assert.That(50.0, Is.EqualTo(result)); // Equivalent to Assert.AreEqual(50.0, result);
+            }
+
+            [Test]
+            public void TestNetTotal()
+            {
+                var inventoryRepo = new TestInventoryRepo(50);
+                var calculator = new Calculator(inventoryRepo);
+
+                var result = calculator.NetTotal(10.0, 5);
+                Assert.That(result, Is.EqualTo(60.0));  // Equivalent to Assert.AreEqual(60.0, result);
+            }
+
+            [Test]
+            public void TestBulkBuyDiscount_NoDiscount()
+            {
+                var inventoryRepo = new TestInventoryRepo(50);
+                var calculator = new Calculator(inventoryRepo);
+
+                var result = calculator.BulkBuyDiscount(50);
+                Assert.That(result, Is.EqualTo(1.0));  // Expected result: 1.0 (No discount)
+            }
+
+            [Test]
+            public void TestBulkBuyDiscount_TenPercentDiscount()
+            {
+                var inventoryRepo = new TestInventoryRepo(50);
+                var calculator = new Calculator(inventoryRepo);
+
+                var result = calculator.BulkBuyDiscount(150);
+                Assert.That(result, Is.EqualTo(0.90));  // Expected result: 0.90 (10% discount)
+            }
+
+            [Test]
+            public void TestBulkBuyDiscount_TwentyPercentDiscount()
+            {
+                var inventoryRepo = new TestInventoryRepo(50);
+                var calculator = new Calculator(inventoryRepo);
+
+                var result = calculator.BulkBuyDiscount(1200);
+                Assert.That(result, Is.EqualTo(0.80));  // Expected result: 0.80 (20% discount)
+            }
+
+            [Test]
+            public void TestIsStockRunningLow_StockIsLow()
+            {
+                // Arrange
+                var inventoryRepo = new TestInventoryRepo(5);
+                var calculator = new Calculator(inventoryRepo);
+
+                // Act
+                var result = calculator.IsStockRunningLow(1);
+
+                // Assert
+                Assert.That(result, Is.True);
+            }
+
+            [Test]
+            public void TestIsStockRunningLow_StockIsNotLow()
+            {
+                // Arrange
+                var inventoryRepo = new TestInventoryRepo(15);
+                var calculator = new Calculator(inventoryRepo);
+
+                // Act
+                var result = calculator.IsStockRunningLow(1);
+
+                // Assert
+                Assert.That(result, Is.False);
+            }
+
+            [Test]
+            public void TestStockRunningLowMultipler_StockIsLow()
+            {
+                // Arrange
+                var inventoryRepo = new TestInventoryRepo(5); // Set low stock
+                var calculator = new Calculator(inventoryRepo);
+
+                // Act
+                var result = calculator.StockRunningLowMultipler(1);
+
+                // Assert
+                Assert.That(result, Is.EqualTo(1.05)); // Expecting 5% increase
+            }
+
+            [Test]
+            public void TestStockRunningLowMultipler_StockIsNotLow()
+            {
+                // Arrange
+                var inventoryRepo = new TestInventoryRepo(20); // Set sufficient stock
+                var calculator = new Calculator(inventoryRepo);
+
+                // Act
+                var result = calculator.StockRunningLowMultipler(1);
+
+                // Assert
+                Assert.That(result, Is.EqualTo(1.0)); // Expecting no increase
+            }
+
+            [Test]
+            public void TestFinalTotal_WithVatAndLowStock()
+            {
+                // Arrange
+                var inventoryRepo = new TestInventoryRepo(5); // Low stock
+                var calculator = new Calculator(inventoryRepo);
+
+                // Act
+                var result = calculator.FinalTotal(1, 100.0, 50, calculateWithVat: true);
+
+                // Assert
+                var expected = 100.0 * 50 * 1.2 * 1.05 * 1.0; // NetTotal * StockRunningLowMultiplier * No discount
+                Assert.That(result, Is.EqualTo(expected));
+            }
+
+            [Test]
+            public void TestFinalTotal_WithoutVatAndNoLowStock()
+            {
+                // Arrange
+                var inventoryRepo = new TestInventoryRepo(50); // Sufficient stock
+                var calculator = new Calculator(inventoryRepo);
+
+                // Act
+                var result = calculator.FinalTotal(1, 100.0, 50, calculateWithVat: false);
+
+                // Assert
+                var expected = 100.0 * 50 * 1.0 * 1.0; // GrossTotal * No stock multiplier * No discount
+                Assert.That(result, Is.EqualTo(expected));
+            }
+
+            [Test]
+            public void TestIsStockAvailable_StockSufficient()
+            {
+                // Arrange
+                var inventoryRepo = new TestInventoryRepo(20); // Sufficient stock
+                var calculator = new Calculator(inventoryRepo);
+
+                // Act
+                var result = calculator.IsStockAvailable(1, 15); // Request 15 units
+
+                // Assert
+                Assert.That(result, Is.True); // Stock is sufficient
+            }
+
+            [Test]
+            public void TestIsStockAvailable_StockInsufficient()
+            {
+                // Arrange
+                var inventoryRepo = new TestInventoryRepo(10); // Limited stock
+                var calculator = new Calculator(inventoryRepo);
+
+                // Act
+                var result = calculator.IsStockAvailable(1, 15); // Request 15 units
+
+                // Assert
+                Assert.That(result, Is.False); // Stock is insufficient
             }
 
             /*
@@ -112,7 +285,6 @@ namespace CodepadTestSample
             /*
                 Write implemenation and test IsStockAvailable
             */
-
 
         }
     }
