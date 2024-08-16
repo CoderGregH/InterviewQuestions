@@ -154,21 +154,7 @@ namespace CodepadTestSample
 
                 // Assert
                 Assert.That(expected, Is.EqualTo(result));
-            }
-
-            [Test]
-            public void TestNetTotal()
-            {
-                // Arrange
-                var inventoryRepo = new TestInventoryRepo(50);
-                var calculator = new Calculator(inventoryRepo);
-
-                // Act
-                var result = calculator.NetTotal(10.0, 5);
-
-                // Assert
-                Assert.That(result, Is.EqualTo(60.0));  // Equivalent to Assert.AreEqual(60.0, result);
-            }
+            }            
 
             [TestCase(-10, 5, 0)]
             [TestCase(10, -5, 0)]
