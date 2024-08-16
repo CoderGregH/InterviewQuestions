@@ -83,9 +83,13 @@ namespace CodepadTestSample
                 return intialTotal * (StockRunningLowMultipler(quanity)) * BulkBuyDiscount(quanity);
             }
 
-            public bool IsStockAvailable(int productId, int quanity)
+            public bool IsStockAvailable(int productId, int quantity)
             {
-                throw new NotImplementedException();
+                // Get the current stock level from the repository
+                var currentStock = _inventoryRepo.GetStock(productId);
+
+                // Check if the available stock is sufficient for the requested quantity
+                return currentStock >= quantity;
             }
 
         }
@@ -272,6 +276,8 @@ namespace CodepadTestSample
                 // Assert
                 Assert.That(result, Is.False); // Stock is insufficient
             }
+
+
 
             /*
                 Tests for GrossTotal, NetTotal and or BulkBuyDiscount
