@@ -92,19 +92,133 @@ const sinonChai = require("sinon-chai");
 const Mocha = require("mocha");
 const assert = require("assert");
 const mocha = new Mocha();
+const expect = Chia.expect;
+
+
 
 // Bit of a hack, but thats how to make it work in code pad
 mocha.suite.emit("pre-require", this, "solution", mocha);
 
-Mocha.describe("Test suite", function () {
-  Mocha.it("check boolean", function () {
-    assert.ok(true);
+// Mocha.describe("Test suite for Stock Available", function () {
+//   Mocha.it("check Stock Availablility", function () {
+//     expect(cal.IsStockAvailable(1,100)).to.be.a('boolean')
+//   });
+// });
+
+
+Mocha.describe('Test Suite For Calculator',function(){
+
+  let calculator: Calculator;
+  let inventoryRepoStub: InventoryRepo;
+
+  Mocha.beforeEach(() => {
+    inventoryRepoStub = {
+      GetStock: () => 100 
+    };
+    calculator = new Calculator(inventoryRepoStub);
+  });
+  //  GrossTotal Check list
+  Mocha.it("should calculate gross total correctly", function () {
+    expect(calculator.GrossTotal(100,5)).to.be.equal(500)
   });
 
-  Mocha.it("check number", function () {
-    //Using Chia
-    Chia.expect(2).to.equal(2);
+  // NetTotal Check List
+  Mocha.it("should calculate net total correctly", function () {
+    expect(calculator.NetTotal(100,5)).to.be.a('number').equal(600)
   });
+
+  // BulkBuyDiscount Check List
+  Mocha.it("should apply bulk buy discount correctly", function () {
+    expect(calculator.BulkBuyDiscount(98)).to.be.a('number').equal(1)
+    expect(calculator.BulkBuyDiscount(500)).to.be.a('number').equal(0.9)
+    expect(calculator.BulkBuyDiscount(1001)).to.be.a('number').equal(0.8)
+  });
+
+
+  //  stock runnning low 
+  Mocha.it('should determine stock running low correctly', () => {
+    inventoryRepoStub.GetStock = () => 8;
+    expect(calculator.IsStockRunningLow(1)).to.be.true;
+
+    inventoryRepoStub.GetStock = () => 12;
+    expect(calculator.IsStockRunningLow(1)).to.be.false;
+  });
+
+  // multiple Stock 
+  Mocha.it('should apply stock running low multiplier correctly', () => {
+    inventoryRepoStub.GetStock = () => 8;
+    expect(calculator.StockRunningLowMultipler(1)).to.equal(1.05);
+
+    inventoryRepoStub.GetStock = () => 12;
+    expect(calculator.StockRunningLowMultipler(1)).to.equal(1);
+  });
+
+  // Is stock Available
+  Mocha.it('should throw an error for IsStockAvailable', () => {
+    expect(() => calculator.IsStockAvailable(1, 10)).to.throw('not Implemented');
+  });
+
+
+  Mocha.it('should calculate final total correctly', () => {
+
+    // Vat Applied Without Low Stock and BulkBuyDiscount As less than 100
+    inventoryRepoStub.GetStock = () => 12;
+    expect(calculator.FinalTotal(1,100,98,true)).to.be.equal(11760)
+
+    // Vat Applied Without Low Stock and BulkBuyDiscount As less than 1000
+    inventoryRepoStub.GetStock = () => 12;
+    expect(calculator.FinalTotal(1,100,998,true)).to.be.equal(107784)
+
+    // Vat Applied Without Low Stock and BulkBuyDiscount As more than 1000
+    inventoryRepoStub.GetStock = () => 12;
+    expect(calculator.FinalTotal(1,100,1001,true)).to.be.equal(96096)
+
+    // Vat Applied With Low Stock and BulkBuyDiscount As less than 100
+    inventoryRepoStub.GetStock = () => 8;
+    expect(calculator.FinalTotal(1,100,98,true)).to.be.equal(12348)
+    
+    // Vat Applied With Low Stock and BulkBuyDiscount As less than 1000
+    inventoryRepoStub.GetStock = () => 8;
+    expect(calculator.FinalTotal(1,100,998,true)).to.be.equal(113173.2)
+
+    // Vat Applied With Low Stock and BulkBuyDiscount As more than 1000
+    inventoryRepoStub.GetStock = () => 8;
+    expect(calculator.FinalTotal(1,100,1001,true)).to.be.equal(100900.8)
+
+    // Vat Not Applied Without Low Stock and BulkBuyDiscount As less than 100
+    inventoryRepoStub.GetStock = () => 12;
+    expect(calculator.FinalTotal(1,100,98,false)).to.be.equal(9800)
+
+    // Vat Not Applied Without Low Stock and BulkBuyDiscount As less than 1000
+    inventoryRepoStub.GetStock = () => 12;
+    expect(calculator.FinalTotal(1,100,998,false)).to.be.equal(89820)
+
+    // Vat Not Applied Without Low Stock and BulkBuyDiscount As more than 1000
+    inventoryRepoStub.GetStock = () => 12;
+    expect(calculator.FinalTotal(1,100,1001,false)).to.be.equal(80080)
+
+    // Vat Not Applied With Low Stock and BulkBuyDiscount As less than 100
+    inventoryRepoStub.GetStock = () => 8;
+    expect(calculator.FinalTotal(1,100,98,false)).to.be.equal(10290)
+
+    // Vat Not Applied With Low Stock and BulkBuyDiscount As less than 1000
+    inventoryRepoStub.GetStock = () => 8;
+    expect(calculator.FinalTotal(1,100,998,false)).to.be.equal(94311)
+
+    // Vat Not Applied With Low Stock and BulkBuyDiscount As more than 1000
+    inventoryRepoStub.GetStock = () => 8;
+    expect(calculator.FinalTotal(1,100,1001,false)).to.be.equal(84084)
+
+
+  });
+});
+
+Mocha.before(function () {
+  console.log('---------------Started the Test-----------------')
+});
+
+Mocha.after(function () {
+  console.log('---------------Done the Test-----------------')
 });
 
 mocha.run();
