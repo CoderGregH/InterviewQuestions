@@ -179,5 +179,5 @@ Mocha.describe("Test suite for stock calculator", function () {
     expect(2).to.equal(2);
   });
 });
-
+   
 mocha.run();
