@@ -1,5 +1,4 @@
 const _ = require("lodash");
-
 class Greeter {
   greeting: string;
   constructor(message: string) {
@@ -16,7 +15,6 @@ interface IInventoryRepo {
 
 class InventoryRepo implements IInventoryRepo {
   public GetStock(productId: number): number {
-    //This would actually call something like a DB to get the actual stock level
     return Math.random() * 120;
   }
 }
@@ -27,26 +25,21 @@ class Calculator {
     this._inventoryRepo = inventoryRepo;
   }
 
-  public GrossTotal(price: number, quanity: number) {
-    return price * quanity;
+  public GrossTotal(price: number, quantity: number) {
+    return price * quantity;
   }
 
   vatRate = 1.2;
 
-  public NetTotal(price: number, quanity: number) {
-    return this.GrossTotal(price, quanity) * this.vatRate;
+  public NetTotal(price: number, quantity: number) {
+    return this.GrossTotal(price, quantity) * this.vatRate;
   }
 
-  public BulkBuyDiscount(quanity: number): number {
-    if (quanity < 100)
-      //No discount
-      return 1;
+  public BulkBuyDiscount(quantity: number): number {
+    if (quantity < 100) return 1;
 
-    if (quanity < 1000)
-      //10 percent
-      return 0.9;
+    if (quantity < 1000) return 0.9;
 
-    //a generous 20 percent
     return 0.8;
   }
 
@@ -55,9 +48,8 @@ class Calculator {
     return currentStock < 10;
   }
 
-  public StockRunningLowMultipler(productId: number): number {
+  public StockRunningLowMultiplier(productId: number): number {
     if (this.IsStockRunningLow(productId)) {
-      //add five percent if stock is running low
       return 1.05;
     }
     return 1;
@@ -73,11 +65,12 @@ class Calculator {
       ? this.NetTotal(price, quanity)
       : this.GrossTotal(price, quanity);
 
-    return (
+    const total =
       intialTotal *
-      this.StockRunningLowMultipler(quanity) *
-      this.BulkBuyDiscount(quanity)
-    );
+      this.StockRunningLowMultiplier(productId) *
+      this.BulkBuyDiscount(quanity);
+
+    return parseFloat(total.toFixed(1));
   }
 
   public IsStockAvailable(productId: number, quanity: number): boolean {
@@ -85,16 +78,19 @@ class Calculator {
   }
 }
 
-const Chia = require("chai");
+const Chai = require("chai");
 const sinon = require("sinon");
 const sinonChai = require("sinon-chai");
 
 const Mocha = require("mocha");
 const assert = require("assert");
 const mocha = new Mocha();
+let inventoryRepoMock: InventoryRepo = {
+  GetStock: sinon.stub().returns(100),
+};
 
-// Bit of a hack, but thats how to make it work in code pad
-mocha.suite.emit("pre-require", this, "solution", mocha);
+let calculator = new Calculator(inventoryRepoMock);
+// mocha.suite.emit("pre-require", this, "solution", mocha);
 
 Mocha.describe("Test suite", function () {
   Mocha.it("check boolean", function () {
@@ -102,9 +98,46 @@ Mocha.describe("Test suite", function () {
   });
 
   Mocha.it("check number", function () {
-    //Using Chia
-    Chia.expect(2).to.equal(2);
+    Chai.expect(2).to.equal(2);
   });
+});
+
+Mocha.describe("Calculator", function () {
+  Mocha.it("it should return the gross total", function () {
+    Chai.expect(calculator.GrossTotal(2, 2)).to.equal(4);
+  });
+
+  Mocha.it("it should return NetTotal", function () {
+    Chai.expect(calculator.NetTotal(2, 2)).to.equal(4.8);
+  });
+});
+
+Mocha.describe("BulkBuyDiscount", function () {
+  assert.strictEqual(calculator.BulkBuyDiscount(10), 1);
+  assert.strictEqual(calculator.BulkBuyDiscount(100), 0.9);
+  assert.strictEqual(calculator.BulkBuyDiscount(1055), 0.8);
+});
+
+Mocha.describe("FinalTotal", function () {
+  Mocha.it(
+    "it should return the finalTotal with no vat, no discount and stock is not running low",
+    function () {
+      const total = calculator.FinalTotal(1, 2, 3, false);
+      Chai.expect(total).to.equal(6);
+    }
+  );
+
+  Mocha.it(
+    "it should return the finalTotal with vat, no discount and stock is not running low",
+    function () {
+      const total = calculator.FinalTotal(1, 2, 3, true);
+      Chai.expect(total).to.equal(7.2);
+    }
+  );
+});
+
+Mocha.it("Should throw an error when IsStockAvailable is called",function () {
+  assert.throws(() => calculator.IsStockAvailable(1, 5),Error,"not Implemented");
 });
 
 mocha.run();
