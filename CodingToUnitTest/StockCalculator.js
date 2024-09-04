@@ -84,16 +84,88 @@ const mocha = new Mocha();
 // Bit of a hack, but thats how to make it work in code pad
 mocha.suite.emit("pre-require", this, "solution", mocha);
 
-Mocha.describe("Test suite", function () {
-  Mocha.it("check boolean", function () {
-    assert.ok(true);
+Mocha.describe('Calculator', () => {
+  let cal;
+  let inventoryRepoMock;
+
+  beforeEach(() => {
+    inventoryRepoMock = sinon.createStubInstance(InventoryRepo);
+    cal = new Calculator(inventoryRepoMock);
   });
 
-  Mocha.it("check number", function () {
-    //Using Chia
-    Chia.expect(2).to.equal(2);
+  Mocha.it('GrossTotal', () => {
+    const price = 50;
+    const quantity = 5;
+    const result = cal.GrossTotal(price, quantity);
+    Chia.expect(result).to.equal(250);
   });
-  
+
+  Mocha.it('NetTotal', () => {
+    const price = 50;
+    const quantity = 5;
+    const expectedGrossTotal = 250;
+    const vatRate = 1.2;
+    sinon.stub(cal, 'GrossTotal').returns(expectedGrossTotal);
+
+    const result = cal.NetTotal(price, quantity);
+    Chia.expect(result).to.equal(expectedGrossTotal * vatRate);
+  });
+
+  Mocha.it('BulkBuyDiscount correctly for quantity < 100', () => {
+    const quantity = 50;
+    const result = cal.BulkBuyDiscount(quantity);
+    Chia.expect(result).to.equal(1);
+  });
+
+  Mocha.it('BulkBuyDiscount correctly for quantity < 1000', () => {
+    const quantity = 500;
+    const result = cal.BulkBuyDiscount(quantity);
+    Chia.expect(result).to.equal(0.9);
+  });
+
+  Mocha.it('BulkBuyDiscount correctly for quantity >= 1000', () => {
+    const quantity = 1000;
+    const result = cal.BulkBuyDiscount(quantity);
+    Chia.expect(result).to.equal(0.8);
+  });
+
+  Mocha.it('if stock is running low', () => {
+    inventoryRepoMock.GetStock.returns(5);
+    const result = cal.IsStockRunningLow('product-id');
+    Chia.expect(result).to.be.true;
+  });
+
+  Mocha.it('if stock is not running low', () => {
+    inventoryRepoMock.GetStock.returns(15);
+    const result = cal.IsStockRunningLow('product-id');
+    Chia.expect(result).to.be.false;
+  });
+
+  Mocha.it('StockRunningLowMultipler correctly when stock is running low', () => {
+    sinon.stub(cal, 'IsStockRunningLow').returns(true);
+    const result = cal.StockRunningLowMultipler('product-id');
+    Chia.expect(result).to.equal(1.05);
+  });
+
+  Mocha.it('StockRunningLowMultipler correctly when stock is not running low', () => {
+    sinon.stub(cal, 'IsStockRunningLow').returns(false);
+    const result = cal.StockRunningLowMultipler('product-id');
+    Chia.expect(result).to.equal(1);
+  });
+
+  Mocha.it('FinalTotal correctly', () => {
+    const price = 100;
+    const quantity = 10;
+    const productId = 'product-id';
+    sinon.stub(cal, 'NetTotal').returns(1200);
+    sinon.stub(cal, 'GrossTotal').returns(1000);
+    sinon.stub(cal, 'StockRunningLowMultipler').returns(1.05);
+    sinon.stub(cal, 'BulkBuyDiscount').returns(0.9);
+
+    const result = cal.FinalTotal(productId, price, quantity, true);
+    Chia.expect(result).to.equal(1200 * 1.05 * 0.9);
+  });
+
 });
 
 mocha.run();
